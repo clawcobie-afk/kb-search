@@ -19,21 +19,24 @@ def cli(query, top, collection, qdrant_url, channel):
         raise click.ClickException("OPENAI_API_KEY environment variable is required")
 
     # Normalize channel slug
-    channel_slug = channel.lstrip("@") if channel else None
+    channel_slug = channel.removeprefix("@") if channel else None
 
     qdrant_client = QdrantClient(url=qdrant_url)
     openai_client = OpenAI(api_key=openai_api_key)
 
     click.echo(f'Hledám: "{query}"\n')
 
-    results = search(
-        query=query,
-        qdrant_client=qdrant_client,
-        openai_client=openai_client,
-        collection=collection,
-        top_k=top,
-        channel_slug=channel_slug,
-    )
+    try:
+        results = search(
+            query=query,
+            qdrant_client=qdrant_client,
+            openai_client=openai_client,
+            collection=collection,
+            top_k=top,
+            channel_slug=channel_slug,
+        )
+    except Exception as e:
+        raise click.ClickException(str(e))
 
     if not results:
         click.echo("Žádné výsledky.")

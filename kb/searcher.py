@@ -18,11 +18,14 @@ def search(
     2. Searches Qdrant with optional channel_slug filter
     3. Returns list of {"score": float, "payload": dict}
     """
-    response = openai_client.embeddings.create(
-        model="text-embedding-3-small",
-        input=query,
-    )
-    query_vector = response.data[0].embedding
+    try:
+        response = openai_client.embeddings.create(
+            model="text-embedding-3-small",
+            input=query,
+        )
+        query_vector = response.data[0].embedding
+    except Exception as e:
+        raise RuntimeError(f"Failed to get embedding: {e}") from e
 
     query_filter = None
     if channel_slug is not None:
@@ -35,11 +38,14 @@ def search(
             ]
         )
 
-    hits = qdrant_client.search(
-        collection_name=collection,
-        query_vector=query_vector,
-        limit=top_k,
-        query_filter=query_filter,
-    )
+    try:
+        hits = qdrant_client.search(
+            collection_name=collection,
+            query_vector=query_vector,
+            limit=top_k,
+            query_filter=query_filter,
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to search Qdrant: {e}") from e
 
     return [{"score": hit.score, "payload": hit.payload} for hit in hits]
