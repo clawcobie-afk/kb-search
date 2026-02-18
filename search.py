@@ -3,16 +3,17 @@ import click
 from openai import OpenAI
 from qdrant_client import QdrantClient
 
-from kb.searcher import search
+from kb.searcher import search, SNIPPET_LENGTH
 
 
 @click.command()
 @click.argument("query")
 @click.option("--top", default=5, show_default=True, help="Number of results to return")
-@click.option("--collection", default="kb", show_default=True, help="Qdrant collection name")
+@click.option("--collection", default=os.environ.get("KB_SEARCH_COLLECTION", "kb"), show_default=True, help="Qdrant collection name (env: KB_SEARCH_COLLECTION)")
 @click.option("--qdrant-url", default="http://localhost:6333", show_default=True, help="Qdrant URL")
 @click.option("--channel", default=None, help="Filter by channel slug (e.g. @SteveMagness)")
-def cli(query, top, collection, qdrant_url, channel):
+@click.option("--model", default="text-embedding-3-small", show_default=True, help="OpenAI embedding model")
+def cli(query, top, collection, qdrant_url, channel, model):
     """Search the knowledge base for QUERY."""
     openai_api_key = os.environ.get("OPENAI_API_KEY")
     if not openai_api_key:
@@ -21,8 +22,8 @@ def cli(query, top, collection, qdrant_url, channel):
     # Normalize channel slug
     channel_slug = channel.removeprefix("@") if channel else None
 
-    qdrant_client = QdrantClient(url=qdrant_url)
-    openai_client = OpenAI(api_key=openai_api_key)
+    qdrant_client = QdrantClient(url=qdrant_url, timeout=30)
+    openai_client = OpenAI(api_key=openai_api_key, timeout=30)
 
     click.echo(f'Hledám: "{query}"\n')
 
@@ -34,6 +35,7 @@ def cli(query, top, collection, qdrant_url, channel):
             collection=collection,
             top_k=top,
             channel_slug=channel_slug,
+            model=model,
         )
     except Exception as e:
         raise click.ClickException(str(e))
@@ -51,8 +53,8 @@ def cli(query, top, collection, qdrant_url, channel):
         url = payload.get("timestamp_url", "")
 
         # Truncate text for display
-        snippet = text[:200].strip()
-        if len(text) > 200:
+        snippet = text[:SNIPPET_LENGTH].strip()
+        if len(text) > SNIPPET_LENGTH:
             snippet += "..."
 
         click.echo(f"#{i} [{score:.2f}] \"{title}\"  ({source})")

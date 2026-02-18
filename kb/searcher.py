@@ -2,6 +2,8 @@ from openai import OpenAI
 from qdrant_client import QdrantClient
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
+SNIPPET_LENGTH = 200
+
 
 def search(
     query: str,
@@ -10,6 +12,7 @@ def search(
     collection: str,
     top_k: int,
     channel_slug: str | None = None,
+    model: str = "text-embedding-3-small",
 ) -> list[dict]:
     """
     Search for relevant chunks.
@@ -20,7 +23,7 @@ def search(
     """
     try:
         response = openai_client.embeddings.create(
-            model="text-embedding-3-small",
+            model=model,
             input=query,
         )
         query_vector = response.data[0].embedding
