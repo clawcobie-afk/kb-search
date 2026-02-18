@@ -108,5 +108,52 @@ def check(qdrant_url, openai_api_key):
         sys.exit(1)
 
 
+@cli.command("setup")
+@click.option("--openai-api-key", prompt="OpenAI API key", hide_input=True)
+@click.option("--qdrant-url", default="http://localhost:6333", prompt="Qdrant URL", show_default=True)
+@click.option("--collection", default="kb", prompt="Default collection name", show_default=True)
+def setup_cmd(openai_api_key, qdrant_url, collection):
+    """Interactive setup wizard: validate credentials and write ~/.config/knowledge-vault/.env."""
+    # 1. Validate OpenAI key
+    try:
+        openai.OpenAI(api_key=openai_api_key).models.list()
+    except Exception as e:
+        click.echo(f"Error: OpenAI API key is invalid: {e}")
+        sys.exit(1)
+
+    # 2. Validate Qdrant
+    try:
+        QdrantClient(url=qdrant_url).get_collections()
+    except Exception as e:
+        click.echo(f"Error: Qdrant is not reachable: {e}")
+        sys.exit(1)
+
+    # 3. Write / merge ~/.config/knowledge-vault/.env
+    config_dir = os.path.expanduser("~/.config/knowledge-vault")
+    os.makedirs(config_dir, exist_ok=True)
+    env_path = os.path.join(config_dir, ".env")
+
+    # Read existing key=value pairs so unrelated keys are preserved
+    existing: dict[str, str] = {}
+    if os.path.exists(env_path):
+        with open(env_path) as fh:
+            for line in fh:
+                line = line.rstrip("\n")
+                if "=" in line and not line.startswith("#"):
+                    key, _, val = line.partition("=")
+                    existing[key.strip()] = val.strip()
+
+    # Update with new values
+    existing["OPENAI_API_KEY"] = openai_api_key
+    existing["QDRANT_URL"] = qdrant_url
+    existing["KB_SEARCH_COLLECTION"] = collection
+
+    with open(env_path, "w") as fh:
+        for key, val in existing.items():
+            fh.write(f"{key}={val}\n")
+
+    click.echo(f"Setup complete. Config written to ~/.config/knowledge-vault/.env")
+
+
 if __name__ == "__main__":
     cli()
