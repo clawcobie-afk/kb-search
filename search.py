@@ -1,4 +1,5 @@
 import os
+import sys
 import click
 import openai
 from openai import OpenAI
@@ -104,6 +105,7 @@ def check(qdrant_url, openai_api_key):
         click.echo("All checks passed.")
     else:
         click.echo(f"{failures} check(s) failed.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
